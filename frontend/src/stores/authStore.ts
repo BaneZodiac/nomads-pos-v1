@@ -41,9 +41,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     } catch (error: any) {
       set({ loading: false });
-      throw new Error(error.response?.data?.error || 'Login failed');
-    }
-  },
+      const msg = error.response?.data?.error || (error.code === 'ERR_NETWORK' ? 'Cannot connect to server. Check that the backend is running.' : error.message || 'Login failed');
+      throw new Error(msg);
+    },
 
   logout: () => {
     localStorage.removeItem('token');
