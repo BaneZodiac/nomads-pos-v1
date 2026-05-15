@@ -3,8 +3,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
 import { config } from './config';
 import { errorHandler } from './middleware/auth';
+import { runSeed } from './seed';
+
+const prisma = new PrismaClient();
 
 import authRoutes from './routes/auth';
 import tenantRoutes from './routes/tenants';
@@ -16,6 +21,15 @@ import supplierRoutes from './routes/suppliers';
 import saleRoutes from './routes/sales';
 import reportRoutes from './routes/reports';
 import settingsRoutes from './routes/settings';
+
+async function setupDatabase() {
+  try {
+    execSync('npx prisma db push --skip-generate', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+    await runSeed();
+  } catch (err) {
+    console.warn('DB setup warning (non-fatal):', (err as Error).message);
+  }
+}
 
 const app = express();
 
@@ -45,8 +59,13 @@ app.get('/api/health', (req, res) => {
 
 app.use(errorHandler);
 
-app.listen(config.port, () => {
-  console.log(`Nomads POS API running on port ${config.port}`);
+setupDatabase().then(() => {
+  app.listen(config.port, () => {
+    console.log(`Nomads POS API running on port ${config.port}`);
+  });
+}).catch((err) => {
+  console.error('Failed to setup database:', err);
+  process.exit(1);
 });
 
 export default app;
