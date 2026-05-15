@@ -25,45 +25,49 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
-  token: localStorage.getItem('token'),
-  loading: false,
+export const useAuthStore = create<AuthState>((set) => {
+  return {
+    user: JSON.parse(localStorage.getItem('user') || 'null'),
+    token: localStorage.getItem('token'),
+    loading: false,
 
-  login: async (email, password) => {
-    set({ loading: true });
-    try {
-      const { data } = await api.post('/auth/login', { email, password });
-      if (data.success) {
-        localStorage.setItem('token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        set({ user: data.data.user, token: data.data.token, loading: false });
+    login: async (email, password) => {
+      set({ loading: true });
+      try {
+        const response = await api.post('/auth/login', { email, password });
+        const data = response.data;
+        if (data.success) {
+          localStorage.setItem('token', data.data.token);
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+          set({ user: data.data.user, token: data.data.token, loading: false });
+        }
+      } catch (error: any) {
+        set({ loading: false });
+        throw new Error('Login failed');
       }
-    } catch (error: any) {
-      set({ loading: false });
-      const msg = error.response?.data?.error || (error.code === 'ERR_NETWORK' ? 'Cannot connect to server. Check that the backend is running.' : error.message || 'Login failed');
-      throw new Error(msg);
     },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ user: null, token: null });
-  },
-
-  checkAuth: async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      const { data } = await api.get('/auth/me');
-      if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.data));
-        set({ user: data.data, token });
-      }
-    } catch {
+    logout: () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       set({ user: null, token: null });
-    }
-  },
-}));
+    },
+
+    checkAuth: async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const response = await api.get('/auth/me');
+        const data = response.data;
+        if (data.success) {
+          localStorage.setItem('user', JSON.stringify(data.data));
+          set({ user: data.data, token });
+        }
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        set({ user: null, token: null });
+      }
+    },
+  };
+});

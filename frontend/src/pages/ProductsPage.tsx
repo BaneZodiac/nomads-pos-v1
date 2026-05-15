@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Product } from '../types';
+import type { Product } from '../types';
 import toast from 'react-hot-toast';
 
 export default function ProductsPage() {
@@ -10,7 +10,7 @@ export default function ProductsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', sellingPrice: 0, costPrice: 0, categoryId: '', barcode: '', unit: 'pc', minStock: 0 });
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await api.get('/products');

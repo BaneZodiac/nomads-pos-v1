@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { Product, Customer } from '../types';
+import type { Product, Customer } from '../types';
 import toast from 'react-hot-toast';
 
 interface CartItem {

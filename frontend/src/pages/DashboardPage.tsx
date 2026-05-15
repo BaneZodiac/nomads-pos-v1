@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { DashboardData } from '../types';
+import type { DashboardData } from '../types';
 import { Link } from 'react-router-dom';
 
 export default function DashboardPage() {
