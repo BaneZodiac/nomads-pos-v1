@@ -9,7 +9,7 @@ export default function TenantsPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '' });
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['tenants'],
     queryFn: async () => { const { data } = await api.get('/tenants'); return data; },
   });

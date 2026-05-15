@@ -10,7 +10,7 @@ export default function ProductsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', sellingPrice: 0, costPrice: 0, categoryId: '', barcode: '', unit: 'pc', minStock: 0 });
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await api.get('/products');

@@ -3,7 +3,7 @@ import api from '../services/api';
 import { Link } from 'react-router-dom';
 
 export default function SalesPage() {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const { data } = await api.get('/sales');

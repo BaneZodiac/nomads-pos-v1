@@ -8,7 +8,7 @@ export default function CustomersPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', notes: '' });
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
       const { data } = await api.get('/customers');

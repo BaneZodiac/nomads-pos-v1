@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 
 export default function AuditLogsPage() {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['audit-logs'],
     queryFn: async () => { const { data } = await api.get('/settings/audit-logs'); return data; },
   });

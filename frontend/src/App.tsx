@@ -29,7 +29,7 @@ function ProtectedRoute({ children, requireSuperAdmin = false }: { children: Rea
 }
 
 function App() {
-  const { user, token } = useAuthStore();
+  const { token } = useAuthStore();
 
   return (
     <Routes>
