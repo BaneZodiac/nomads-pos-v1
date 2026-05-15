@@ -1,0 +1,480 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ===================== TENANCY =====================
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  email       String?
+  phone       String?
+  address     String?
+  logo        String?
+  currency    String   @default("USD")
+  timezone    String   @default("UTC")
+  dateFormat  String   @default("DD/MM/YYYY")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscription   Subscription?
+  settings       TenantSettings?
+  users          User[]
+  customers      Customer[]
+  suppliers      Supplier[]
+  categories     Category[]
+  products       Product[]
+  sales          Sale[]
+  purchaseOrders PurchaseOrder[]
+  locations      Location[]
+  shifts         Shift[]
+  accounts       Account[]
+  auditLogs      AuditLog[]
+}
+
+model TenantSettings {
+  id              String @id @default(uuid())
+  tenantId        String @unique
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receiptHeader   String?
+  receiptFooter   String?
+  receiptTheme    String  @default("light")
+  barcodeFormat   String  @default("CODE128")
+  taxRate         Float   @default(0)
+  taxName         String  @default("Tax")
+  enableDiscount  Boolean @default(true)
+  enableLoyalty   Boolean @default(false)
+  enableMultiLang Boolean @default(false)
+  defaultLanguage String  @default("en")
+  primaryColor    String  @default("#3B82F6")
+  secondaryColor  String  @default("#1E293B")
+  logoUrl         String?
+  invoicePrefix   String  @default("INV-")
+  receiptPrefix   String  @default("RCPT-")
+  lowStockAlert   Int     @default(10)
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  shifts    Shift[]
+  stockIn   StockMovement[] @relation("StockInLocation")
+}
+
+// ===================== SUBSCRIPTION =====================
+
+model SubscriptionPlan {
+  id             String   @id @default(uuid())
+  name           String
+  slug           String   @unique
+  description    String?
+  price          Float
+  billingCycle   String   @default("monthly")
+  trialDays      Int      @default(14)
+  maxUsers       Int      @default(5)
+  maxLocations   Int      @default(1)
+  maxProducts    Int      @default(500)
+  maxCustomers   Int      @default(200)
+  maxInvoices    Int      @default(500)
+  maxSuppliers   Int      @default(20)
+  features       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  tenantId        String   @unique
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id])
+  status          String   @default("active")
+  startDate       DateTime @default(now())
+  endDate         DateTime
+  trialEndDate    DateTime?
+  autoRenew       Boolean  @default(true)
+  paymentMethod   String?
+  paymentGateway  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invoices        SubscriptionInvoice[]
+}
+
+model SubscriptionInvoice {
+  id             String   @id @default(uuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount         Float
+  currency       String   @default("USD")
+  status         String   @default("pending")
+  dueDate        DateTime
+  paidAt         DateTime?
+  paymentRef     String?
+  createdAt      DateTime @default(now())
+}
+
+// ===================== AUTH & USERS =====================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  isActive      Boolean  @default(true)
+  isSuperAdmin  Boolean  @default(false)
+  tenantId      String?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleId        String?
+  role          Role?    @relation(fields: [roleId], references: [id])
+  locationId    String?
+  location      Location? @relation(fields: [locationId], references: [id])
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shifts        Shift[]
+  createdSales  Sale[]   @relation("Seller")
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String
+  description String?
+  isSystem    Boolean  @default(false)
+  tenantId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions Permission[]
+}
+
+model Permission {
+  id     String @id @default(uuid())
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  action String
+  scope  String @default("all")
+}
+
+// ===================== PRODUCTS & INVENTORY =====================
+
+model Category {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  parentId  String?
+  parent    Category? @relation("CategoryParent", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryParent")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products  Product[]
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  name            String
+  slug            String
+  sku             String
+  barcode         String?
+  description     String?
+  costPrice       Float    @default(0)
+  sellingPrice    Float    @default(0)
+  wholesalePrice  Float?
+  taxRate         Float    @default(0)
+  unit            String   @default("pc")
+  minStock        Int      @default(0)
+  isActive        Boolean  @default(true)
+  hasVariants     Boolean  @default(false)
+  image           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  variants        ProductVariant[]
+  stocks          Stock[]
+  stockMovements  StockMovement[]
+  saleItems       SaleItem[]
+  purchaseItems   PurchaseOrderItem[]
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name        String
+  sku         String
+  barcode     String?
+  price       Float
+  costPrice   Float?
+  stock       Int      @default(0)
+  attributes  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Stock {
+  id        String   @id @default(uuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model StockMovement {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type        String
+  quantity    Int
+  reference   String?
+  note        String?
+  locationId  String?
+  location    Location? @relation("StockInLocation", fields: [locationId], references: [id])
+  userId      String?
+  createdAt   DateTime @default(now())
+}
+
+// ===================== CUSTOMERS & SUPPLIERS =====================
+
+model Customer {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  email        String?
+  phone        String?
+  address      String?
+  balance      Float    @default(0)
+  loyaltyPoints Int     @default(0)
+  totalSpent   Float    @default(0)
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sales        Sale[]
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  balance   Float    @default(0)
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+// ===================== SALES & POS =====================
+
+model Sale {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceNo     String
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  userId        String
+  user          User     @relation("Seller", fields: [userId], references: [id])
+  subtotal      Float
+  discountTotal Float    @default(0)
+  taxTotal      Float    @default(0)
+  grandTotal    Float
+  paidAmount    Float
+  changeAmount  Float    @default(0)
+  status        String   @default("completed")
+  paymentMethod String   @default("cash")
+  shiftId       String?
+  shift         Shift?   @relation(fields: [shiftId], references: [id])
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         SaleItem[]
+  payments      Payment[]
+  returns       Return[]
+}
+
+model SaleItem {
+  id           String  @id @default(uuid())
+  saleId       String
+  sale         Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  variantId    String?
+  quantity     Int
+  unitPrice    Float
+  discount     Float   @default(0)
+  tax          Float   @default(0)
+  total        Float
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  method    String
+  amount    Float
+  reference String?
+  createdAt DateTime @default(now())
+}
+
+model Return {
+  id          String   @id @default(uuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  reason      String
+  totalAmount Float
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       ReturnItem[]
+}
+
+model ReturnItem {
+  id          String  @id @default(uuid())
+  returnId    String
+  returnRef   Return  @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  total       Float
+}
+
+// ===================== PURCHASE ORDERS =====================
+
+model PurchaseOrder {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  orderNo      String
+  status       String   @default("draft")
+  totalAmount  Float
+  paidAmount   Float    @default(0)
+  notes        String?
+  dueDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items        PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id             String         @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder  PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product        @relation(fields: [productId], references: [id])
+  quantity       Int
+  unitCost       Float
+  total          Float
+}
+
+// ===================== SHIFT =====================
+
+model Shift {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  locationId    String?
+  location      Location? @relation(fields: [locationId], references: [id])
+  openingCash   Float
+  closingCash   Float?
+  openingTime   DateTime @default(now())
+  closingTime   DateTime?
+  totalSales    Float    @default(0)
+  totalReturns  Float    @default(0)
+  note          String?
+  status        String   @default("open")
+
+  sales         Sale[]
+}
+
+// ===================== ACCOUNTING =====================
+
+model Account {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  type      String
+  balance   Float    @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===================== AUDIT & NOTIFICATIONS =====================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
