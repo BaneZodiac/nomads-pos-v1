@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 512
+    }
+  },
+  "env": {
+    "PRISMA_CLIENT_ENGINE_TYPE": "binary"
+  }
+}
