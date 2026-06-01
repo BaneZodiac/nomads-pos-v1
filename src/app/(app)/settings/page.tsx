@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
 import { PageLoading } from '@/components/ui/Loading'
-import { Settings, Receipt, DollarSign, Globe, Shield, Bell } from 'lucide-react'
+import { Settings, Receipt, DollarSign, Globe, Shield, Bell, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const [tab, setTab] = useState('general')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     storeName: 'My Store',
     email: session?.user?.email || '',
@@ -19,7 +21,39 @@ export default function SettingsPage() {
     receiptFooter: 'Thank you for your business!',
   })
 
-  if (status === 'loading') return <PageLoading />
+  const settingMap = (settings: { key: string; value: string }[]) => {
+    const map: Record<string, string> = {}
+    for (const s of settings) map[s.key] = s.value
+    return map
+  }
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings')
+        const data = await res.json()
+        if (data.success) {
+          const s = settingMap(data.data.settings || [])
+          const t = data.data.tenant || {}
+          setForm({
+            storeName: t.name || 'My Store',
+            email: t.email || session?.user?.email || '',
+            phone: t.phone || '',
+            address: t.address || '',
+            currency: s.default_currency || 'INR',
+            taxRate: s.default_tax_rate || '0',
+            receiptFooter: s.receipt_footer || 'Thank you for your business!',
+          })
+        }
+      } catch {
+        // Use defaults
+      }
+      setLoading(false)
+    }
+    if (status === 'authenticated') fetchSettings()
+  }, [status, session])
+
+  if (status === 'loading' || loading) return <PageLoading />
   if (!session) return null
 
   const tabs = [
@@ -30,8 +64,31 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ]
 
-  const handleSave = () => {
-    toast.success('Settings saved successfully')
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant: { name: form.storeName, email: form.email, phone: form.phone, address: form.address },
+          settings: [
+            { key: 'default_currency', value: form.currency },
+            { key: 'default_tax_rate', value: form.taxRate },
+            { key: 'receipt_footer', value: form.receiptFooter },
+          ],
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Settings saved successfully')
+      } else {
+        toast.error(data.error || 'Failed to save settings')
+      }
+    } catch {
+      toast.error('Failed to save settings')
+    }
+    setSaving(false)
   }
 
   return (
@@ -41,7 +98,10 @@ export default function SettingsPage() {
           <h1 className="page-title">Settings</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your store preferences</p>
         </div>
-        <button onClick={handleSave} className="btn btn-primary">Save Changes</button>
+        <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">

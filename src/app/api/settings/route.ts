@@ -38,10 +38,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: settings })
     }
 
-    // Tenant settings
+    // Tenant settings + tenant data
     if (!user.tenantId) return NextResponse.json({ success: false, error: 'No tenant' }, { status: 403 })
-    const settings = await prisma.tenantSetting.findMany({ where: { tenantId: user.tenantId } })
-    return NextResponse.json({ success: true, data: settings })
+    const [settings, tenant] = await Promise.all([
+      prisma.tenantSetting.findMany({ where: { tenantId: user.tenantId } }),
+      prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { name: true, email: true, phone: true, address: true, brandColor: true } }),
+    ])
+    return NextResponse.json({ success: true, data: { settings, tenant } })
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
@@ -53,13 +56,27 @@ export async function POST(req: NextRequest) {
     if (!user || !user.tenantId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
-    const setting = await prisma.tenantSetting.upsert({
-      where: { tenantId_key: { tenantId: user.tenantId, key: body.key } },
-      update: { value: body.value },
-      create: { tenantId: user.tenantId, key: body.key, value: body.value },
-    })
 
-    return NextResponse.json({ success: true, data: setting })
+    // Bulk save: { settings: [{ key, value }] }
+    if (body.settings) {
+      for (const s of body.settings) {
+        await prisma.tenantSetting.upsert({
+          where: { tenantId_key: { tenantId: user.tenantId, key: s.key } },
+          update: { value: String(s.value) },
+          create: { tenantId: user.tenantId, key: s.key, value: String(s.value) },
+        })
+      }
+    }
+
+    // Update tenant fields: { tenant: { name, email, phone, address, brandColor } }
+    if (body.tenant) {
+      await prisma.tenant.update({
+        where: { id: user.tenantId },
+        data: body.tenant,
+      })
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
