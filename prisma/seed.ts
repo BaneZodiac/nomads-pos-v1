@@ -32,7 +32,7 @@ async function main() {
     data: [
       { key: 'app_name', value: 'Nomads POS' },
       { key: 'app_version', value: '1.0.0' },
-      { key: 'default_currency', value: 'USD' },
+      { key: 'default_currency', value: 'INR' },
       { key: 'default_tax_rate', value: '0' },
       { key: 'smtp_host', value: '' },
       { key: 'smtp_port', value: '587' },

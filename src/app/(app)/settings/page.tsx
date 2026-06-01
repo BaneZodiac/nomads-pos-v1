@@ -14,7 +14,7 @@ export default function SettingsPage() {
     email: session?.user?.email || '',
     phone: '',
     address: '',
-    currency: 'USD',
+    currency: 'INR',
     taxRate: '0',
     receiptFooter: 'Thank you for your business!',
   })
@@ -104,6 +104,8 @@ export default function SettingsPage() {
               <div>
                 <label className="label">Default Currency</label>
                 <select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })} className="select">
+                  <option value="INR">INR (₹)</option>
+                  <option value="SAR">SAR (﷼)</option>
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>

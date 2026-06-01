@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import { PageLoading } from '@/components/ui/Loading'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
 
   if (status === 'loading') return <PageLoading />
