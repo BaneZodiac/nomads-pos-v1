@@ -29,6 +29,25 @@ export async function POST(req: NextRequest) {
     if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'TENANT_ADMIN')) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
+    const targetTenantId = user.tenantId || body.tenantId
+
+    // Enforce user limit for non-super-admin
+    if (targetTenantId) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: targetTenantId },
+        select: { maxUsers: true },
+      })
+      if (tenant) {
+        const currentCount = await prisma.user.count({ where: { tenantId: targetTenantId } })
+        if (currentCount >= tenant.maxUsers) {
+          return NextResponse.json({
+            success: false,
+            error: `User limit reached (${tenant.maxUsers}). Upgrade your plan to add more users.`,
+          }, { status: 403 })
+        }
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(body.password || 'password123', 10)
 
     const newUser = await prisma.user.create({
@@ -37,7 +56,7 @@ export async function POST(req: NextRequest) {
         email: body.email,
         password: hashedPassword,
         role: body.role || 'CASHIER',
-        tenantId: user.tenantId || body.tenantId,
+        tenantId: targetTenantId,
         locationId: body.locationId || null,
         phone: body.phone || null,
       },
