@@ -39,7 +39,7 @@ export default function Sidebar() {
 
   const role = session?.user?.role || 'CASHIER'
   const isSuperAdmin = role === 'SUPER_ADMIN'
-  const links = isSuperAdmin ? superAdminLinks : tenantLinks
+  const links = isSuperAdmin ? superAdminLinks : tenantLinks.filter(l => l.roles.includes(role))
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
