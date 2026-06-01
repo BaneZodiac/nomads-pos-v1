@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { checkTenantLimit } from '@/lib/tenant'
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,6 +35,12 @@ export async function POST(req: NextRequest) {
     if (!user || !user.tenantId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
+
+    const limitCheck = await checkTenantLimit(user.tenantId, 'products')
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ success: false, error: limitCheck.message }, { status: 403 })
+    }
+
     const product = await prisma.product.create({
       data: {
         name: body.name,

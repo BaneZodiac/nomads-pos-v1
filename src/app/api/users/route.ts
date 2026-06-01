@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { checkTenantLimit } from '@/lib/tenant'
 import bcrypt from 'bcryptjs'
 
 export async function GET() {
@@ -31,20 +32,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const targetTenantId = user.tenantId || body.tenantId
 
-    // Enforce user limit for non-super-admin
+    // Enforce user limit
     if (targetTenantId) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: targetTenantId },
-        select: { maxUsers: true },
-      })
-      if (tenant) {
-        const currentCount = await prisma.user.count({ where: { tenantId: targetTenantId } })
-        if (currentCount >= tenant.maxUsers) {
-          return NextResponse.json({
-            success: false,
-            error: `User limit reached (${tenant.maxUsers}). Upgrade your plan to add more users.`,
-          }, { status: 403 })
-        }
+      const limitCheck = await checkTenantLimit(targetTenantId, 'users')
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ success: false, error: limitCheck.message }, { status: 403 })
       }
     }
 

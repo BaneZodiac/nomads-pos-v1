@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
+import { checkTenantLimit } from '@/lib/tenant'
 import * as XLSX from 'xlsx'
 
 function normalizeKey(key: string): string {
@@ -98,6 +99,12 @@ export async function POST(req: NextRequest) {
         trackStock: true,
         tenantId: user.tenantId,
       })
+    }
+
+    // Check product limit before importing
+    const limitCheck = await checkTenantLimit(user.tenantId, 'products', toCreate.length)
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ success: false, error: limitCheck.message }, { status: 403 })
     }
 
     let created = 0
