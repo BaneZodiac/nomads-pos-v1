@@ -19,6 +19,7 @@ const tenantLinks = [
   { href: '/customers', label: 'Customers', icon: Users, roles: ['TENANT_ADMIN', 'MANAGER', 'CASHIER', 'ACCOUNTANT'] },
   { href: '/sales', label: 'Sales', icon: Receipt, roles: ['TENANT_ADMIN', 'MANAGER', 'CASHIER', 'ACCOUNTANT'] },
   { href: '/reports', label: 'Reports', icon: FileBarChart, roles: ['TENANT_ADMIN', 'MANAGER', 'ACCOUNTANT'] },
+  { href: '/users', label: 'Team', icon: UserCircle, roles: ['TENANT_ADMIN'] },
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['TENANT_ADMIN'] },
 ]
 

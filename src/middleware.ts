@@ -9,6 +9,7 @@ const routeRoles: Record<string, string[]> = {
   '/sales': ['TENANT_ADMIN', 'MANAGER', 'CASHIER', 'ACCOUNTANT'],
   '/reports': ['TENANT_ADMIN', 'MANAGER', 'ACCOUNTANT'],
   '/settings': ['TENANT_ADMIN'],
+  '/users': ['TENANT_ADMIN'],
 }
 
 export default withAuth(
@@ -39,5 +40,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/pos/:path*', '/products/:path*', '/inventory/:path*', '/customers/:path*', '/sales/:path*', '/reports/:path*', '/admin/:path*', '/settings/:path*'],
+  matcher: ['/dashboard/:path*', '/pos/:path*', '/products/:path*', '/inventory/:path*', '/customers/:path*', '/sales/:path*', '/reports/:path*', '/admin/:path*', '/settings/:path*', '/users/:path*'],
 }
