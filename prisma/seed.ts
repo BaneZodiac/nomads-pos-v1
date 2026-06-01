@@ -118,7 +118,7 @@ async function main() {
       brandColor: '#F97316',
       isActive: true,
       planId: professional.id,
-      maxUsers: 10,
+      maxUsers: 5,
       maxProducts: 5000,
     },
   })
