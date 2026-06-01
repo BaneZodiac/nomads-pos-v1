@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingSpinner } from '@/components/ui/Loading'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
-import { Package, Plus, Edit2, Search, MoreHorizontal, Loader2 } from 'lucide-react'
+import { Package, Plus, Edit2, Search, MoreHorizontal, Loader2, Upload, Download, FileSpreadsheet } from 'lucide-react'
 import type { Product } from '@/types'
 
 export default function ProductsPage() {
@@ -17,6 +17,10 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const [showImport, setShowImport] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: { row: number; message: string }[]; totalRows: number } | null>(null)
 
   const [form, setForm] = useState({
     name: '', sku: '', price: '', costPrice: '', taxRate: '0',
@@ -84,6 +88,38 @@ export default function ProductsPage() {
     setSaving(false)
   }
 
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    setImportResult(null)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res = await fetch('/api/products/import', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.success) {
+        setImportResult(data.data)
+        if (data.data.created > 0) fetchProducts()
+      } else {
+        toast.error(data.error || 'Import failed')
+      }
+    } catch {
+      toast.error('Failed to import file')
+    }
+    setImporting(false)
+    e.target.value = ''
+  }
+
+  const downloadTemplate = () => {
+    const a = document.createElement('a')
+    a.href = '/api/products/template'
+    a.download = 'products-template.xlsx'
+    a.click()
+  }
+
   if (loading) return <div className="flex justify-center py-12"><LoadingSpinner /></div>
 
   return (
@@ -93,9 +129,14 @@ export default function ProductsPage() {
           <h1 className="page-title">Products</h1>
           <p className="text-gray-500 text-sm mt-1">{products.length} products total</p>
         </div>
-        <button onClick={openCreate} className="btn btn-primary">
-          <Plus className="w-4 h-4" /> Add Product
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="btn btn-outline">
+            <Upload className="w-4 h-4" /> Import
+          </button>
+          <button onClick={openCreate} className="btn btn-primary">
+            <Plus className="w-4 h-4" /> Add Product
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -198,6 +239,63 @@ export default function ProductsPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={showImport} onClose={() => { setShowImport(false); setImportResult(null) }} title="Import Products from Excel" size="lg">
+        {importResult ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-gray-50">
+              <FileSpreadsheet className="w-8 h-8 text-primary-500" />
+              <div>
+                <p className="font-medium text-stone-900">Import complete</p>
+                <p className="text-sm text-gray-500">{importResult.totalRows} rows processed</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-green-50 border border-green-100">
+                <p className="text-2xl font-bold text-green-600">{importResult.created}</p>
+                <p className="text-sm text-green-700">Created</p>
+              </div>
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-100">
+                <p className="text-2xl font-bold text-amber-600">{importResult.skipped}</p>
+                <p className="text-sm text-amber-700">Skipped</p>
+              </div>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div>
+                <p className="font-medium text-stone-900 mb-2">Errors ({importResult.errors.length})</p>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {importResult.errors.map((err, i) => (
+                    <p key={i} className="text-sm text-red-600">
+                      {err.row > 0 ? `Row ${err.row}: ` : ''}{err.message}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button onClick={() => { setShowImport(false); setImportResult(null) }} className="btn btn-primary">Done</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-6 border-2 border-dashed border-gray-200 rounded-lg text-center">
+              <Upload className="w-10 h-10 mx-auto text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500 mb-4">Upload an Excel file (.xlsx or .xls)</p>
+              <label className="btn btn-primary cursor-pointer inline-flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                {importing ? 'Processing...' : 'Choose File'}
+                <input type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" disabled={importing} />
+              </label>
+            </div>
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <button onClick={downloadTemplate} className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                <Download className="w-4 h-4" /> Download template
+              </button>
+              <button onClick={() => setShowImport(false)} className="btn btn-outline btn-sm">Cancel</button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
