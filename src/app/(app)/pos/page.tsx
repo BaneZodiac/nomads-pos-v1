@@ -5,12 +5,12 @@ import { useSession } from 'next-auth/react'
 import { PageLoading } from '@/components/ui/Loading'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Modal } from '@/components/ui/Modal'
-import { formatCurrency, PAYMENT_METHODS, generateInvoiceNo } from '@/lib/utils'
+import { formatCurrency, PAYMENT_METHODS, generateInvoiceNo, POINTS_PER_CURRENCY } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Product, Customer, CartItem } from '@/types'
 import {
   Search, Plus, Minus, Trash2, UserPlus, Printer, X,
-  ShoppingCart, Barcode, Percent, DollarSign, CreditCard, Loader2
+  ShoppingCart, Barcode, Percent, DollarSign, CreditCard, Loader2, Star
 } from 'lucide-react'
 
 export default function POSPage() {
@@ -28,6 +28,7 @@ export default function POSPage() {
   const [processing, setProcessing] = useState(false)
   const [discount, setDiscount] = useState(0)
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage')
+  const [pointsToUse, setPointsToUse] = useState(0)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { searchRef.current?.focus() }, [])
@@ -96,7 +97,12 @@ export default function POSPage() {
 
   const cartSubtotal = cart.reduce((sum, i) => sum + i.total, 0)
   const cartTaxTotal = cart.reduce((sum, i) => sum + (i.total * i.tax / 100), 0)
-  const cartDiscount = discountType === 'percentage' ? cartSubtotal * (discount / 100) : discount
+  const manualDiscount = discountType === 'percentage' ? cartSubtotal * (discount / 100) : discount
+  const pointsUsed = selectedCustomer && pointsToUse > 0
+    ? Math.min(pointsToUse, selectedCustomer.loyaltyPts, Math.floor(cartSubtotal * POINTS_PER_CURRENCY))
+    : 0
+  const pointsDiscount = pointsUsed / POINTS_PER_CURRENCY
+  const cartDiscount = manualDiscount + pointsDiscount
   const cartTotal = cartSubtotal + cartTaxTotal - cartDiscount
   const dueAmount = parseFloat(paidAmount) || 0
   const changeAmount = Math.max(0, dueAmount - cartTotal)
@@ -124,6 +130,9 @@ export default function POSPage() {
       subtotal: cartSubtotal,
       taxTotal: cartTaxTotal,
       discountTotal: cartDiscount,
+      manualDiscount,
+      pointsUsed,
+      pointsDiscount,
       total: cartTotal,
       paidAmount: dueAmount || cartTotal,
       changeAmount,
@@ -141,10 +150,15 @@ export default function POSPage() {
       if (data.success) {
         toast.success('Sale completed!')
         setCart([])
-        setSelectedCustomer(null)
         setPaidAmount('')
         setDiscount(0)
+        setPointsToUse(0)
         setShowPaymentModal(false)
+        if (selectedCustomer && data.customer) {
+          setSelectedCustomer(data.customer)
+        } else {
+          setSelectedCustomer(null)
+        }
       } else {
         toast.error(data.error || 'Sale failed')
       }
@@ -209,14 +223,41 @@ export default function POSPage() {
       <div className="w-full lg:w-96 xl:w-[28rem] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm">
         {/* Selected Customer */}
         {selectedCustomer && (
-          <div className="px-4 py-2 bg-primary-50 border-b border-primary-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary-600" />
-              <span className="text-sm text-primary-700">{selectedCustomer.name}</span>
+          <div className="px-4 py-2 bg-primary-50 border-b border-primary-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-primary-600" />
+                <span className="text-sm text-primary-700">{selectedCustomer.name}</span>
+              </div>
+              <button onClick={() => { setSelectedCustomer(null); setPointsToUse(0) }} className="text-primary-400 hover:text-primary-600">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button onClick={() => setSelectedCustomer(null)} className="text-primary-400 hover:text-primary-600">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-primary-100">
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-yellow-500" />
+                <span className="text-xs text-primary-600">{selectedCustomer.loyaltyPts} pts available</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={pointsToUse || ''}
+                  onChange={e => setPointsToUse(Math.max(0, Math.min(Number(e.target.value), selectedCustomer.loyaltyPts)))}
+                  placeholder="Pts"
+                  className="input w-16 text-xs py-1"
+                  min={0}
+                  max={selectedCustomer.loyaltyPts}
+                  disabled={selectedCustomer.loyaltyPts === 0}
+                />
+                <button
+                  onClick={() => setPointsToUse(Math.min(selectedCustomer.loyaltyPts, Math.floor(cartSubtotal * POINTS_PER_CURRENCY)))}
+                  className="text-xs text-primary-600 hover:text-primary-800 font-medium"
+                  disabled={selectedCustomer.loyaltyPts === 0}
+                >
+                  All
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -285,10 +326,16 @@ export default function POSPage() {
             <span>Tax</span>
             <span>{formatCurrency(cartTaxTotal)}</span>
           </div>
-          {cartDiscount > 0 && (
+          {manualDiscount > 0 && (
             <div className="flex justify-between text-sm text-red-500">
               <span>Discount</span>
-              <span>-{formatCurrency(cartDiscount)}</span>
+              <span>-{formatCurrency(manualDiscount)}</span>
+            </div>
+          )}
+          {pointsDiscount > 0 && (
+            <div className="flex justify-between text-sm text-yellow-600">
+              <span>Points ({pointsUsed})</span>
+              <span>-{formatCurrency(pointsDiscount)}</span>
             </div>
           )}
           <div className="flex justify-between text-lg font-bold text-stone-900 pt-1 border-t border-gray-100">

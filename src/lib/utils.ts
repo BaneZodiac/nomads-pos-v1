@@ -45,6 +45,8 @@ export const PAYMENT_METHODS = [
   { id: 'split', label: 'Split Payment', icon: '🔀' },
 ]
 
+export const POINTS_PER_CURRENCY = 100 // 100 points = 1 currency unit discount
+
 export const USER_ROLES = [
   { id: 'SUPER_ADMIN', label: 'Super Admin', level: 100 },
   { id: 'TENANT_ADMIN', label: 'Tenant Admin', level: 80 },

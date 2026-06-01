@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     if (!user || !user.tenantId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
-    const { invoiceNo, items, subtotal, taxTotal, discountTotal, total, paidAmount, changeAmount, paymentMethod, customerId } = body
+    const { invoiceNo, items, subtotal, taxTotal, discountTotal, total, paidAmount, changeAmount, paymentMethod, customerId, pointsUsed = 0, pointsDiscount = 0 } = body
 
     if (!items || items.length === 0) {
       return NextResponse.json({ success: false, error: 'Cart is empty' }, { status: 400 })
@@ -70,29 +70,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Update customer loyalty points and total spent
+    let updatedCustomer = null
     if (customerId) {
-      await prisma.customer.update({
+      const earned = Math.floor(total / 10)
+      updatedCustomer = await prisma.customer.update({
         where: { id: customerId },
         data: {
           totalSpent: { increment: total },
-          loyaltyPts: { increment: Math.floor(total / 10) },
+          loyaltyPts: { increment: earned - (pointsUsed || 0) },
         },
       })
     }
 
     // Create audit log
+    const pointsDetail = pointsUsed ? ` (${pointsUsed} pts redeemed for ${formatCurrency(pointsDiscount)})` : ''
     await prisma.auditLog.create({
       data: {
         action: 'SALE_COMPLETED',
         entity: 'Sale',
         entityId: sale.id,
-        details: `Invoice ${invoiceNo} - ${formatCurrency(total)}`,
+        details: `Invoice ${invoiceNo} - ${formatCurrency(total)}${pointsDetail}`,
         userId: user.id,
         tenantId: user.tenantId,
       },
     })
 
-    return NextResponse.json({ success: true, data: sale })
+    return NextResponse.json({ success: true, data: sale, customer: updatedCustomer })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
