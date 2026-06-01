@@ -270,7 +270,7 @@ export default function POSPage() {
               className="select w-24 text-sm"
             >
               <option value="percentage">%</option>
-              <option value="fixed">$</option>
+              <option value="fixed">Fixed</option>
             </select>
           </div>
         </div>

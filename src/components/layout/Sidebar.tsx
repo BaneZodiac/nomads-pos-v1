@@ -110,7 +110,7 @@ export default function Sidebar() {
             {!collapsed && <span>Logout</span>}
           </Link>
           {!collapsed && session?.user && (
-            <div className="mt-2 px-3 py-2 text-xs text-gray-400 truncate">
+            <div className="mt-2 px-3 py-2 text-xs text-gray-500 whitespace-nowrap overflow-visible">
               {session.user.name} · {session.user.role.replace('_', ' ')}
             </div>
           )}
