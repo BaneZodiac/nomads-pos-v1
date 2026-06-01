@@ -44,31 +44,36 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        try {
+          if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: { tenant: true },
-        })
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            include: { tenant: true },
+          })
 
-        if (!user || !user.isActive) return null
+          if (!user || !user.isActive) return null
 
-        const isValid = await bcrypt.compare(credentials.password, user.password)
-        if (!isValid) return null
+          const isValid = await bcrypt.compare(credentials.password, user.password)
+          if (!isValid) return null
 
-        if (user.tenant && (!user.tenant.isActive || (user.tenant.expiresAt && new Date() > user.tenant.expiresAt))) {
+          if (user.tenant && (!user.tenant.isActive || (user.tenant.expiresAt && new Date() > user.tenant.expiresAt))) {
+            return null
+          }
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role as UserRole,
+            tenantId: user.tenantId,
+            locationId: user.locationId,
+            tenantSlug: user.tenant?.slug || null,
+            image: user.avatar,
+          }
+        } catch (error) {
+          console.error('Auth error:', error)
           return null
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role as UserRole,
-          tenantId: user.tenantId,
-          locationId: user.locationId,
-          tenantSlug: user.tenant?.slug || null,
-          image: user.avatar,
         }
       },
     }),
